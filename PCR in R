@@ -1,7 +1,7 @@
 'Suppose there are a number of porfolios whose default probabilities are estimated by some macroeconomic factors
 'Principal Component Regression may act as a supporting tool for factor selection in this scenario 
 
-#load data (transformed)
+#load data
 #install.packages(c("readxl","writeXLS","combinat"))
 library(readxl)
 library(WriteXLS)
