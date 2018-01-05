@@ -1,0 +1,113 @@
+'Suppose there are a number of porfolios whose default probabilities are estimated by some macroeconomic factors
+'Principal Component Regression may act as a supporting tool for factor selection in this scenario 
+
+#load data (transformed)
+#install.packages(c("readxl","writeXLS","combinat"))
+library(readxl)
+library(WriteXLS)
+
+infile <- "~/Input data.xlsx"
+# Constitution of the input data is illustrated in the next code block
+outpath <- "~/Output data"
+# setwd("~/destination folder")
+
+# Macroeconomic factor time series
+Book1 <- read_excel(infile, sheet = "Sheet1")
+# Default rate time series data of tested portfolios; Header row is portfolio names
+Book2 <- read_excel(infile, sheet = "Sheet2")
+
+# Suppose I am looking at the combination of a maximum at 5 explanatory variables
+max_fac <- 5
+
+# This sub-function generates an exhaustive list of combinations of explanatory variables 
+wanted_combo <- function(combo_data,take,combo_cnt){
+  test_string <- colnames(combo_data)[c(combo[1:take,combo_cnt])+1]
+  
+  # If some factors are detected highly correlated with one another beforehand,
+  # they should not exist in the same set of combo.
+  # For instance:
+  candidate <- c("PPI","CPI","LIBOR","FED Fund Rate")
+  
+  detect <- c()
+  for(candi in 1:length(candidate)){
+    detect[candi] <- sum(grepl(candidate[candi],test_string))
+  }
+  !(max(detect)>1)
+}
+
+# the main func that runs PCR, and it will be compared with OLS performance measured by R2 and sigma
+#------------------------------------------------------------------------
+for(PD in 1:dim(Book2)[2]){
+  Xs <- Book1
+  YXs <- cbind(Book2[,PD], Xs)
+  # Normalize
+  YXs <- scale(YXs, center = TRUE, scale = TRUE)
+  
+  output <- list()
+  
+  for(num_fac in 1:max_fac) {
+    
+    factor_array <- c(length(num_fac))
+    loading_array <- c(length(num_fac))
+    coef_array <- c(length(num_fac))
+    for(num in 1:num_fac){
+      factor_array[num] <- c(paste("Factor",num))
+      loading_array[num] <- c(paste("Loading",num,sep = ""))
+      coef_array[num] <- c(paste("OLS.Coef",num,sep = ""))
+    }
+    
+    combo <- combn(dim(YXs)[2]-1,num_fac)
+    
+    PCA_result <- matrix(nrow = dim(combo)[2], ncol = 3*num_fac+3)
+    colnames(PCA_result) <- 
+      c(factor_array,
+        "RSQ.PD_PC1","OLS.RSQ","OLS.Sigma", 
+        loading_array,coef_array)
+    
+    # this extra loop counter is in case of blank sheets when wanted_combo func produces #N/A
+    actual_cnt <- 0
+    
+    for(i in 1:dim(combo)[2])  {
+      if(wanted_combo(YXs,num_fac,i)){
+        actual_cnt <- actual_cnt+1
+        PCA_result[actual_cnt,1:num_fac] <- 
+          colnames(YXs)[c(combo[1:num_fac,i])+1]
+        
+        #PCA
+        YXs.pca <- prcomp(YXs[,c(combo[1:num_fac,i])+1],center = TRUE,scale. = TRUE)
+        tmp <- summary(xx<-lm(YXs[,1]~0+YXs.pca$x[,1]))
+        PCA_result[actual_cnt,(num_fac+1)] <- 
+          round(tmp$r.squared,digits = 6)
+        PCA_result[actual_cnt,(num_fac+4):(2*num_fac+3)] <- 
+          round(YXs.pca$rotation[,1],digits = 6)
+        
+        #OLS
+        reg_out <- summary(lm.d0 <- lm(YXs[,1]~0+YXs[,(c(combo[1:num_fac,i])+1)]))
+        PCA_result[actual_cnt,(num_fac+2)] <- 
+          round(reg_out$r.squared,digits = 6)
+        PCA_result[actual_cnt,(num_fac+3)] <- 
+          round(reg_out$sigma,digits = 6)
+        PCA_result[actual_cnt,(2*num_fac+4):(3*num_fac+3)] <- 
+          round(t(reg_out$coefficients[,1]),digits = 6)
+      }
+    }
+    
+    PCA_result <- na.exclude(data.frame(PCA_result))
+    if(nrow(PCA_result)>0){
+      #sort by RSQ(PD,PC1)
+      PCA_result <- PCA_result[order(-as.numeric(as.character(PCA_result$RSQ.PD_PC1))),]
+      Rank <- c(1:nrow(PCA_result))
+      PCA_result=cbind(Rank,PCA_result)
+
+      output[[num_fac]] <- PCA_result
+    }else{
+      PCA_result <- data.frame(PCA_result)
+      output[[num_fac]] <- PCA_result
+    }
+  }
+
+  WriteXLS(output,
+           ExcelFileName = 
+             paste(outpath,colnames(Book2)[PD],".xlsx",sep = ""),
+           SheetNames = paste("Combo of ",1:max_fac,sep = ""))
+}
