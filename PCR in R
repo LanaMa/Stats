@@ -26,12 +26,13 @@ wanted_combo <- function(combo_data,take,combo_cnt){
   # If some factors are detected highly correlated with one another beforehand,
   # they should not exist in the same set of combo.
   # For instance:
-  candidate <- c("PPI","CPI","LIBOR","FED Fund Rate")
+  candidate <- c("LIBOR","FED Fund Rate","PPI YoY","PPI Avrg")
   
   detect <- c()
   for(candi in 1:length(candidate)){
     detect[candi] <- sum(grepl(candidate[candi],test_string))
   }
+  # Unwanted combo will show up as #N/A in the output dataframe
   !(max(detect)>1)
 }
 
@@ -64,7 +65,7 @@ for(PD in 1:dim(Book2)[2]){
         "RSQ.PD_PC1","OLS.RSQ","OLS.Sigma", 
         loading_array,coef_array)
     
-    # this extra loop counter is in case of blank sheets when wanted_combo func produces #N/A
+    # this extra loop counter is in case of blank rows in the output dataframe due to #N/A columns of wanted_combo
     actual_cnt <- 0
     
     for(i in 1:dim(combo)[2])  {
