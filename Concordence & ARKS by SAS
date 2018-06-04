@@ -1,0 +1,16 @@
+/*concordence test*/
+proc freq data=dat;
+  table rating1*rating2/norow nocol nopercent measures; /*table row*col*/
+  output out=result all;
+run;
+/*The output*/
+/*Kendall’s tau-b and Stuart’s tau-c statistics (TAUB and TAUC).*/
+/*Gamma (_GAMMA_)*/
+/*Somers’s D statistics (SMDCR and SMDRC).*/
+/*Pearson and Spearman correlation coefficients (PCORR and SCORR).*/
+
+/*ARKS as a special case of Somers'D*/
+proc freq data=dat;
+  table default_flag*rating/norow nocol nopercent measures; /*table row*col*/
+  output out=result SMDCR;
+run;
